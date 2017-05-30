@@ -41,10 +41,63 @@ func main() {
 }
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
+  fmt.Println("*** dashboardHandler ***")
   return
 }
 
 func resourcesHandler(w http.ResponseWriter, r *http.Request) {
+  fmt.Println("*** resourcesHandler ***")
+
+  // decode request body
+  decoder := json.NewDecoder(r.Body)
+  var rqs RequestStruct
+  decoder.Decode(&rqs)
+  fmt.Println(rqs)
+  fmt.Println("\n")
+
+  if !checkProduct(rqs.Product) {
+    resp := ResponseStruct{"bad product"}
+    js, err := json.Marshal(resp)
+    if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusBadRequest)
+    w.Write(js)
+    return
+  }
+
+  if !checkPlan(rqs.Plan) {
+    resp := ResponseStruct{"bad plan"}
+    js, err := json.Marshal(resp)
+    if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusBadRequest)
+    w.Write(js)
+    return
+  }
+
+  if !checkRegion(rqs.Region) {
+    resp := ResponseStruct{"bad region"}
+    js, err := json.Marshal(resp)
+    if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusBadRequest)
+    w.Write(js)
+    return
+  }
+
+  // get the random number and create json response
   result := seed()
   resp := ResponseStruct{fmt.Sprintf("%d", result)}
   js, err := json.Marshal(resp)
@@ -57,13 +110,16 @@ func resourcesHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
   w.WriteHeader(http.StatusCreated)
   w.Write(js)
+  return
 }
 
 func credentialsHandler(w http.ResponseWriter, r *http.Request) {
+  fmt.Println("*** credentialsHandler ***")
   return
 }
 
 func ssoHandler(w http.ResponseWriter, r *http.Request) {
+  fmt.Println("*** ssoHandler ***")
   return
 }
 
@@ -73,8 +129,44 @@ func seed() string {
   return fmt.Sprintf("%d", result)
 }
 
+func checkPlan(plan string) bool {
+  plans := [2]string{"small", "large"}
+
+  for i := range plans {
+    if plan == plans[i] {
+      return true
+    }
+  }
+
+  return false
+}
+
+func checkProduct(product string) bool {
+  products := [1]string{"bonnets"}
+
+  for i := range products {
+    if product == products[i] {
+      return true
+    }
+  }
+
+  return false
+}
+
+func checkRegion(region string) bool {
+  regions  := [1]string{"aws::us-east-1"}
+
+  for i := range regions {
+    if region == regions[i] {
+      return true
+    }
+  }
+
+  return false
+}
+
 type ResponseStruct struct {
-  Message string
+  Message string `json:"message"`
 }
 
 type RequestStruct struct {
