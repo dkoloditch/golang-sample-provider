@@ -39,12 +39,12 @@ func main() {
 
   router.HandleFunc("/dashboard", dashboardHandler).Methods("GET")
 
-  router.HandleFunc("/v1/resources/{id}", resourcesHandler).Methods("PUT")
-  router.HandleFunc("/v1/resources/{id}", resourcesHandler).Methods("PATCH")
-  router.HandleFunc("/v1/resources/{id}", resourcesHandler).Methods("DELETE")
+  router.HandleFunc("/v1/resources/{id}", createResourcesHandler).Methods("PUT")
+  router.HandleFunc("/v1/resources/{id}", updateResourcesHandler).Methods("PATCH")
+  router.HandleFunc("/v1/resources/{id}", deleteResourcesHandler).Methods("DELETE")
 
-  router.HandleFunc("/v1/credentials/{id}", credentialsHandler).Methods("PUT")
-  router.HandleFunc("/v1/credentials/{id}", credentialsHandler).Methods("DELETE")
+  router.HandleFunc("/v1/credentials/{id}", createCredentialsHandler).Methods("PUT")
+  router.HandleFunc("/v1/credentials/{id}", deleteCredentialsHandler).Methods("DELETE")
 
   router.HandleFunc("/v1/sso", ssoHandler).Methods("GET")
 
@@ -55,7 +55,7 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
   return
 }
 
-func resourcesHandler(w http.ResponseWriter, r *http.Request) {
+func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
   body, _ := ioutil.ReadAll(r.Body)
@@ -86,12 +86,24 @@ func resourcesHandler(w http.ResponseWriter, r *http.Request) {
 
   if regionIsNotValidAndResponseCreated(rqs.Region, w) { return }
 
-  if resourceExistsAndResponseCreated(r.Method, rqs, w) { return }
+  if resourceAlreadyExistsAndResponseCreated(r.Method, rqs, w) { return }
 
   if validRequestAndResponseCreated(rqs, w) { return }
 }
 
-func credentialsHandler(w http.ResponseWriter, r *http.Request) {
+func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
+  return
+}
+
+func deleteResourcesHandler(w http.ResponseWriter, r *http.Request) {
+  return
+}
+
+func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
+  return
+}
+
+func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
   return
 }
 
@@ -147,11 +159,13 @@ func regionIsNotValidAndResponseCreated(region string, w http.ResponseWriter) bo
   return true
 }
 
-func resourceExistsAndResponseCreated(method string, rqs RequestStruct, w http.ResponseWriter) bool {
+func resourceAlreadyExistsAndResponseCreated(method string, rqs RequestStruct, w http.ResponseWriter) bool {
   existingData, dataRetrieved := db[rqs.Id]
   newData := string(convertRequestToJson(rqs))
   newDataMatchesOldData := existingData == newData
 
+  // @TODO this can probably be refactored to not account for Method given
+  // appropriate routes
   if dataRetrieved && (method == "POST" || method == "PUT") {
     // same content acts as created
     if newDataMatchesOldData {
@@ -181,7 +195,7 @@ func resourceExistsAndResponseCreated(method string, rqs RequestStruct, w http.R
 
 func validRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
   // @TODO: can this be abstracted further?
-  
+
   // get the random number and create json response
   result := seed()
   resp := ResponseStruct{fmt.Sprintf("%d", result)}
