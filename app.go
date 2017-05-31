@@ -28,6 +28,7 @@ type ResponseStruct struct {
   Message string `json:"message"`
 }
 
+// @TODO: may want to rename this
 type RequestStruct struct {
   Id string
   Product string
@@ -61,7 +62,7 @@ func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
 
   bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
 
-  if verifyRequestSignatureAndResponseCreated(r, w, bodyBuffer) { return }
+  if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
 
   if productIsNotValidAndResponseCreated(rqs.Product, w) { return }
 
@@ -75,11 +76,15 @@ func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+
   bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
 
-  if verifyRequestSignatureAndResponseCreated(r, w, bodyBuffer) { return }
+  if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
 
   if resourceAlreadyExistsAndResponseCreated(rqs, w) { return }
+
+  if resourceDoesNotExistAndResponseCreated(rqs, w) { return }
 }
 
 func deleteResourcesHandler(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +121,7 @@ func getRequestStruct(bodyCopy io.Reader) RequestStruct {
   return rqs
 }
 
-func verifyRequestSignatureAndResponseCreated(r *http.Request, w http.ResponseWriter, buf io.Reader) bool {
+func signatureIsNotValidAndResponseCreated(r *http.Request, w http.ResponseWriter, buf io.Reader) bool {
   verifier, _ := signature.NewVerifier(MASTER_KEY)
 
   if err := verifier.Verify(r, buf); err != nil {
@@ -208,6 +213,25 @@ func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseW
       w.WriteHeader(http.StatusConflict)
       w.Write(js)
     }
+
+    return true
+  }
+
+  return false
+}
+
+func resourceDoesNotExistAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
+  _, dataRetrieved := db[rqs.Id]
+
+  if !dataRetrieved {
+    // non existing resource
+    resp := ResponseStruct{"no such resource"}
+    js, err := json.Marshal(resp)
+
+    issueResponseIfErrorOccurs(err, w)
+
+    w.WriteHeader(http.StatusNotFound)
+    w.Write(js)
 
     return true
   }
