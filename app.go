@@ -11,6 +11,7 @@ import (
   "time"
   "encoding/json"
   "github.com/manifoldco/go-signature"
+  "io"
   "io/ioutil"
   "bytes"
 )
@@ -58,27 +59,9 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
-  body, _ := ioutil.ReadAll(r.Body)
-  buf := bytes.NewBuffer(body)
-  bodyCopy := bytes.NewReader(body) // clone body to avoid mutability issues
-  verifier, _ := signature.NewVerifier(MASTER_KEY)
-  if err := verifier.Verify(r, buf); err != nil {
-    resp := ResponseStruct{""}
-    js, err := json.Marshal(resp)
-    if err != nil {
-      http.Error(w, err.Error(), http.StatusInternalServerError)
-      return
-    }
+  bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
 
-    w.WriteHeader(http.StatusUnauthorized)
-    w.Write(js)
-    return
-  }
-
-  // decode request body
-  decoder := json.NewDecoder(bodyCopy)
-  var rqs RequestStruct
-  decoder.Decode(&rqs)
+  if verifyRequestSignatureAndResponseCreated(r, w, bodyBuffer) { return }
 
   if productIsNotValidAndResponseCreated(rqs.Product, w) { return }
 
@@ -86,13 +69,17 @@ func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
 
   if regionIsNotValidAndResponseCreated(rqs.Region, w) { return }
 
-  if resourceAlreadyExistsAndResponseCreated(r.Method, rqs, w) { return }
+  if resourceAlreadyExistsAndResponseCreated(rqs, w) { return }
 
   if validRequestAndResponseCreated(rqs, w) { return }
 }
 
 func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
-  return
+  bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
+
+  if verifyRequestSignatureAndResponseCreated(r, w, bodyBuffer) { return }
+
+  if resourceAlreadyExistsAndResponseCreated(rqs, w) { return }
 }
 
 func deleteResourcesHandler(w http.ResponseWriter, r *http.Request) {
@@ -109,6 +96,41 @@ func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 
 func ssoHandler(w http.ResponseWriter, r *http.Request) {
   return
+}
+
+func getBodyBufferAndRequestStruct(r *http.Request) (*bytes.Buffer, RequestStruct) {
+  body, _ := ioutil.ReadAll(r.Body)
+  bodyBuffer := bytes.NewBuffer(body)
+  bodyCopy := bytes.NewReader(body) // clone body to avoid mutability issues
+  rqs := getRequestStruct(bodyCopy)
+
+  return bodyBuffer, rqs
+}
+
+func getRequestStruct(bodyCopy io.Reader) RequestStruct {
+  // decode request body
+  decoder := json.NewDecoder(bodyCopy)
+  var rqs RequestStruct
+  decoder.Decode(&rqs)
+
+  return rqs
+}
+
+func verifyRequestSignatureAndResponseCreated(r *http.Request, w http.ResponseWriter, buf io.Reader) bool {
+  verifier, _ := signature.NewVerifier(MASTER_KEY)
+
+  if err := verifier.Verify(r, buf); err != nil {
+    resp := ResponseStruct{""}
+    js, err := json.Marshal(resp)
+
+    issueResponseIfErrorOccurs(err, w)
+
+    w.WriteHeader(http.StatusUnauthorized)
+    w.Write(js)
+    return true
+  }
+
+  return false
 }
 
 func seed() string {
@@ -159,14 +181,14 @@ func regionIsNotValidAndResponseCreated(region string, w http.ResponseWriter) bo
   return true
 }
 
-func resourceAlreadyExistsAndResponseCreated(method string, rqs RequestStruct, w http.ResponseWriter) bool {
+func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
   existingData, dataRetrieved := db[rqs.Id]
   newData := string(convertRequestToJson(rqs))
   newDataMatchesOldData := existingData == newData
 
   // @TODO this can probably be refactored to not account for Method given
   // appropriate routes
-  if dataRetrieved && (method == "POST" || method == "PUT") {
+  if dataRetrieved {
     // same content acts as created
     if newDataMatchesOldData {
       resp := ResponseStruct{""}
