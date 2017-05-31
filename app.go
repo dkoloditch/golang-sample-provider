@@ -15,10 +15,24 @@ import (
   "bytes"
 )
 
+// simple in-memory db
+var db = make(map[string]string)
+
 var MASTER_KEY = os.Getenv("MASTER_KEY")
 // CLIENT_ID := os.Getenv("CLIENT_ID")
 // CLIENT_SECRET := os.Getenv("CLIENT_SECRET")
 // CONNECTOR_URL := os.Getenv("CONNECTOR_URL")
+
+type ResponseStruct struct {
+  Message string `json:"message"`
+}
+
+type RequestStruct struct {
+  Id string
+  Product string
+  Plan string
+  Region string
+}
 
 func main() {
   router := mux.NewRouter().StrictSlash(true)
@@ -42,6 +56,8 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func resourcesHandler(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+
   body, _ := ioutil.ReadAll(r.Body)
   buf := bytes.NewBuffer(body)
   bodyCopy := bytes.NewReader(body) // clone body to avoid mutability issues
@@ -54,7 +70,6 @@ func resourcesHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusUnauthorized)
     w.Write(js)
     return
@@ -73,7 +88,6 @@ func resourcesHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusBadRequest)
     w.Write(js)
     return
@@ -87,7 +101,6 @@ func resourcesHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusBadRequest)
     w.Write(js)
     return
@@ -101,23 +114,27 @@ func resourcesHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusBadRequest)
     w.Write(js)
+    return
+  }
+
+  if resourceExistsAndResponseCreated(r.Method, rqs, w) {
     return
   }
 
   // get the random number and create json response
   result := seed()
   resp := ResponseStruct{fmt.Sprintf("%d", result)}
+  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region}
   js, err := json.Marshal(resp)
+  data, err := json.Marshal(rqsData)
 
-  if err != nil {
-    http.Error(w, err.Error(), http.StatusInternalServerError)
-    return
-  }
+  issueResponseIfErrorOccurs(err, w)
 
-  w.Header().Set("Content-Type", "application/json")
+  // add to db
+  db[rqs.Id] = string(data)
+
   w.WriteHeader(http.StatusCreated)
   w.Write(js)
   return
@@ -173,21 +190,48 @@ func checkRegion(region string) bool {
   return false
 }
 
-func checkSignature(signature string) bool {
-  if signature == "bla" {
+func resourceExistsAndResponseCreated(method string, rqs RequestStruct, w http.ResponseWriter) bool {
+  existingData, dataRetrieved := db[rqs.Id]
+  newData := string(convertRequestToJson(rqs))
+  newDataMatchesOldData := existingData == newData
+
+  if dataRetrieved && (method == "POST" || method == "PUT") {
+    // same content acts as created
+    if newDataMatchesOldData {
+      resp := ResponseStruct{""}
+      js, err := json.Marshal(resp)
+
+      issueResponseIfErrorOccurs(err, w)
+
+      w.WriteHeader(http.StatusCreated)
+      w.Write(js)
+    } else {
+      // different content results in conflict
+      resp := ResponseStruct{"resource already exists"}
+      js, err := json.Marshal(resp)
+
+      issueResponseIfErrorOccurs(err, w)
+
+      w.WriteHeader(http.StatusConflict)
+      w.Write(js)
+    }
+
     return true
   }
 
   return false
 }
 
-type ResponseStruct struct {
-  Message string `json:"message"`
+func convertRequestToJson(rqs RequestStruct) []byte {
+  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region}
+  jsonData, _ := json.Marshal(rqsData)
+
+  return jsonData
 }
 
-type RequestStruct struct {
-  Id string
-  Product string
-  Plan string
-  Region string
+func issueResponseIfErrorOccurs(err error, w http.ResponseWriter) {
+  if err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
 }
