@@ -2,28 +2,25 @@ package main
 
 import (
   "fmt"
-  // "html"
   "log"
   "net/http"
   "github.com/gorilla/mux"
   // "golang.org/x/oauth2"
-  // "os"
+  "os"
   "math/rand"
   "time"
   "encoding/json"
+  "github.com/manifoldco/go-signature"
+  "io/ioutil"
+  "bytes"
 )
 
+var MASTER_KEY = os.Getenv("MASTER_KEY")
+// CLIENT_ID := os.Getenv("CLIENT_ID")
+// CLIENT_SECRET := os.Getenv("CLIENT_SECRET")
+// CONNECTOR_URL := os.Getenv("CONNECTOR_URL")
+
 func main() {
-  // MASTER_KEY := os.Getenv("MASTER_KEY")
-  // CLIENT_ID := os.Getenv("CLIENT_ID")
-  // CLIENT_SECRET := os.Getenv("CLIENT_SECRET")
-  // CONNECTOR_URL := os.Getenv("CONNECTOR_URL")
-
-  // fmt.Println(MASTER_KEY)
-  // fmt.Println(CLIENT_ID)
-  // fmt.Println(CLIENT_SECRET)
-  // fmt.Println(CONNECTOR_URL)
-
   router := mux.NewRouter().StrictSlash(true)
 
   router.HandleFunc("/dashboard", dashboardHandler).Methods("GET")
@@ -41,19 +38,32 @@ func main() {
 }
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
-  fmt.Println("*** dashboardHandler ***")
   return
 }
 
 func resourcesHandler(w http.ResponseWriter, r *http.Request) {
-  fmt.Println("*** resourcesHandler ***")
+  body, _ := ioutil.ReadAll(r.Body)
+  buf := bytes.NewBuffer(body)
+  bodyCopy := bytes.NewReader(body) // clone body to avoid mutability issues
+  verifier, _ := signature.NewVerifier(MASTER_KEY)
+  if err := verifier.Verify(r, buf); err != nil {
+    resp := ResponseStruct{""}
+    js, err := json.Marshal(resp)
+    if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusUnauthorized)
+    w.Write(js)
+    return
+  }
 
   // decode request body
-  decoder := json.NewDecoder(r.Body)
+  decoder := json.NewDecoder(bodyCopy)
   var rqs RequestStruct
   decoder.Decode(&rqs)
-  fmt.Println(rqs)
-  fmt.Println("\n")
 
   if !checkProduct(rqs.Product) {
     resp := ResponseStruct{"bad product"}
@@ -114,12 +124,10 @@ func resourcesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func credentialsHandler(w http.ResponseWriter, r *http.Request) {
-  fmt.Println("*** credentialsHandler ***")
   return
 }
 
 func ssoHandler(w http.ResponseWriter, r *http.Request) {
-  fmt.Println("*** ssoHandler ***")
   return
 }
 
@@ -160,6 +168,14 @@ func checkRegion(region string) bool {
     if region == regions[i] {
       return true
     }
+  }
+
+  return false
+}
+
+func checkSignature(signature string) bool {
+  if signature == "bla" {
+    return true
   }
 
   return false
