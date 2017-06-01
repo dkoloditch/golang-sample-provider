@@ -30,10 +30,11 @@ type ResponseStruct struct {
 
 // @TODO: may want to rename this
 type RequestStruct struct {
-  Id string
-  Product string
-  Plan string
-  Region string
+  Id string `json:"id"`
+  Product string `json:"product"`
+  Plan string `json:"plan"`
+  Region string `json:"region"`
+  RandomNumber string `json:"randomNumber"`
 }
 
 func main() {
@@ -72,7 +73,7 @@ func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
 
   if resourceAlreadyExistsAndResponseCreated(rqs, w) { return }
 
-  if validRequestAndResponseCreated(rqs, w) { return }
+  if validCreateRequestAndResponseCreated(rqs, w) { return }
 }
 
 func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +86,8 @@ func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
   if resourceAlreadyExistsAndResponseCreated(rqs, w) { return }
 
   if resourceDoesNotExistAndResponseCreated(rqs, w) { return }
+
+  if validUpdateRequestAndResponseCreated(rqs, w) { return }
 }
 
 func deleteResourcesHandler(w http.ResponseWriter, r *http.Request) {
@@ -186,16 +189,32 @@ func regionIsNotValidAndResponseCreated(region string, w http.ResponseWriter) bo
   return true
 }
 
+func newDataMatchesOldData(rqs1 RequestStruct, rqs2 RequestStruct) bool {
+  idMatch := rqs1.Id == rqs2.Id
+  productMatch := rqs1.Product == rqs2.Product
+  planMatch := rqs1.Plan == rqs2.Plan
+  regionMatch := rqs1.Region == rqs2.Region
+
+  return idMatch && productMatch && planMatch && regionMatch
+}
+
 func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
-  existingData, dataRetrieved := db[rqs.Id]
-  newData := string(convertRequestToJson(rqs))
-  newDataMatchesOldData := existingData == newData
+  // since inbound data doesn't contain a random number, we need one to
+  // compare existing data with new data. otherwise, they won't match when
+  // they should. to get around this, we add the random number from the existing
+  // data to the new data and then make the comparison.
+  existingDataRetrieved, dataRetrieved := db[rqs.Id]
+  existingDataBytes := []byte(existingDataRetrieved)
+  existingDataBuffer := bytes.NewBuffer(existingDataBytes)
+  existingDataRqsStruct := getRequestStruct(existingDataBuffer)
+  newDataMatchesOldData := newDataMatchesOldData(existingDataRqsStruct, rqs)
 
   // @TODO this can probably be refactored to not account for Method given
   // appropriate routes
   if dataRetrieved {
     // same content acts as created
     if newDataMatchesOldData {
+      // @TODO: respond with appropriate random number
       resp := ResponseStruct{""}
       js, err := json.Marshal(resp)
 
@@ -203,6 +222,8 @@ func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseW
 
       w.WriteHeader(http.StatusCreated)
       w.Write(js)
+
+      return true
     } else {
       // different content results in conflict
       resp := ResponseStruct{"resource already exists"}
@@ -212,9 +233,9 @@ func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseW
 
       w.WriteHeader(http.StatusConflict)
       w.Write(js)
-    }
 
-    return true
+      return true
+    }
   }
 
   return false
@@ -239,13 +260,14 @@ func resourceDoesNotExistAndResponseCreated(rqs RequestStruct, w http.ResponseWr
   return false
 }
 
-func validRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
+func validCreateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
   // @TODO: can this be abstracted further?
+  // @TODO: save random number in db with data
 
   // get the random number and create json response
   result := seed()
   resp := ResponseStruct{fmt.Sprintf("%d", result)}
-  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region}
+  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, result}
   js, err := json.Marshal(resp)
   data, err := json.Marshal(rqsData)
 
@@ -260,6 +282,28 @@ func validRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bo
   return true
 }
 
+func validUpdateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
+  // get the random number and create json response
+  result := seed()
+  resp := ResponseStruct{fmt.Sprintf("%d", result)}
+  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, result}
+  js, err := json.Marshal(resp)
+  data, err := json.Marshal(rqsData)
+
+  issueResponseIfErrorOccurs(err, w)
+
+  // remove previous data and add new data to db
+  // @TODO: this is obviously a hack since we're completely replacing the data
+  // (PUT) rather than modifying it (PATCH). fix this eventually.
+  delete(db, rqs.Id)
+  db[rqs.Id] = string(data)
+
+  w.WriteHeader(http.StatusCreated)
+  w.Write(js)
+
+  return false
+}
+
 func handleResponse(responseMessage string, statusCode int, w http.ResponseWriter) {
   resp := ResponseStruct{responseMessage}
   js, err := json.Marshal(resp)
@@ -271,7 +315,7 @@ func handleResponse(responseMessage string, statusCode int, w http.ResponseWrite
 }
 
 func convertRequestToJson(rqs RequestStruct) []byte {
-  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region}
+  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, rqs.RandomNumber}
   jsonData, _ := json.Marshal(rqsData)
 
   return jsonData
