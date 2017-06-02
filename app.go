@@ -89,6 +89,8 @@ func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
 
   if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
 
+  if planIsNotValidAndResponseCreated(rqs.Plan, w) { return }
+
   if resourceDoesNotExistAndResponseCreated(rqs, w, id) { return }
 
   if validUpdateRequestAndResponseCreated(rqs, w, id) { return }
