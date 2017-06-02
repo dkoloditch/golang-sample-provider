@@ -20,7 +20,7 @@ import (
 // simple in-memory db
 var db = Database{
   Resources: make(map[string]string),
-  Credentials: Credentials{},
+  Credentials: make(map[string]string),
 }
 
 var MASTER_KEY = os.Getenv("MASTER_KEY")
@@ -30,7 +30,7 @@ var MASTER_KEY = os.Getenv("MASTER_KEY")
 
 type Database struct {
   Resources map[string]string `json:"resources"`
-  Credentials `json:"credentials"`
+  Credentials map[string]string `json:"credentials"`
 }
 
 type ResponseStruct struct {
@@ -135,7 +135,7 @@ func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 
   if invalidResourceIdAndResponseCreated(w, rqs) { return }
 
-  if provisionCredentialsAndResponseCreated(w) { return }
+  if provisionCredentialsAndResponseCreated(w, rqs) { return }
 
   return
 }
@@ -160,8 +160,12 @@ func invalidResourceIdAndResponseCreated(w http.ResponseWriter, rqs CredentialsR
   return false
 }
 
-func provisionCredentialsAndResponseCreated(w http.ResponseWriter) bool {
-  // @TODO: should save to db
+func provisionCredentialsAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
+  data, err := json.Marshal(rqs)
+
+  issueResponseIfErrorOccurs(err, w)
+
+  db.Credentials[rqs.Id] = string(data)
 
   resp := &CredentialsResponse{
     Message: "your password is ready",
@@ -177,17 +181,16 @@ func provisionCredentialsAndResponseCreated(w http.ResponseWriter) bool {
   w.Write(js)
 
   return true
-
-  return false
 }
 
 func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
-  // 401 bad signature
+  w.Header().Set("Content-Type", "application/json")
 
-  // 404 no such credential
+  _, id := path.Split(r.URL.Path)
 
-  // 204
-  return
+  if credentialsDoNotExistAndResponseCreated(w, id) { return }
+
+  if credentialsDeletedAndResponseCreated(w, id) { return }
 }
 
 func ssoHandler(w http.ResponseWriter, r *http.Request) {
@@ -406,6 +409,41 @@ func validUpdateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter, 
   w.Write(js)
 
   return false
+}
+
+func credentialsDoNotExistAndResponseCreated(w http.ResponseWriter, id string) bool {
+  _, dataRetrieved := db.Credentials[id]
+
+  if !dataRetrieved {
+    resp := &CredentialsResponse{
+      Message: "no such credential",
+    }
+    js, err := json.Marshal(resp)
+
+    issueResponseIfErrorOccurs(err, w)
+
+    w.WriteHeader(http.StatusNotFound)
+    w.Write(js)
+
+    return true
+  }
+
+  return false
+}
+
+func credentialsDeletedAndResponseCreated(w http.ResponseWriter, id string) bool {
+  delete(db.Credentials, id)
+
+  resp := &CredentialsResponse{
+  }
+  js, err := json.Marshal(resp)
+
+  issueResponseIfErrorOccurs(err, w)
+
+  w.WriteHeader(http.StatusNoContent)
+  w.Write(js)
+
+  return true
 }
 
 func handleResponse(responseMessage string, statusCode int, w http.ResponseWriter) {
