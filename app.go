@@ -14,6 +14,7 @@ import (
   "io"
   "io/ioutil"
   "bytes"
+  "path"
 )
 
 // simple in-memory db
@@ -62,6 +63,7 @@ func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
   bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
+  id := rqs.Id
 
   if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
 
@@ -71,7 +73,7 @@ func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
 
   if regionIsNotValidAndResponseCreated(rqs.Region, w) { return }
 
-  if resourceAlreadyExistsAndResponseCreated(rqs, w) { return }
+  if resourceAlreadyExistsAndResponseCreated(rqs, w, id) { return }
 
   if validCreateRequestAndResponseCreated(rqs, w) { return }
 }
@@ -79,15 +81,17 @@ func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
 func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
+  // since the id is only passed via URL with PATCH requests, we set this here
+  // and provide it to the relevant methods below.
+  _, id := path.Split(r.URL.Path)
+
   bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
 
   if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
 
-  if resourceAlreadyExistsAndResponseCreated(rqs, w) { return }
+  if resourceDoesNotExistAndResponseCreated(rqs, w, id) { return }
 
-  if resourceDoesNotExistAndResponseCreated(rqs, w) { return }
-
-  if validUpdateRequestAndResponseCreated(rqs, w) { return }
+  if validUpdateRequestAndResponseCreated(rqs, w, id) { return }
 }
 
 func deleteResourcesHandler(w http.ResponseWriter, r *http.Request) {
@@ -189,38 +193,36 @@ func regionIsNotValidAndResponseCreated(region string, w http.ResponseWriter) bo
   return true
 }
 
-func newDataMatchesOldData(rqs1 RequestStruct, rqs2 RequestStruct) bool {
-  idMatch := rqs1.Id == rqs2.Id
+func noDifferenceInContent(rqs1 RequestStruct, rqs2 RequestStruct) bool {
   productMatch := rqs1.Product == rqs2.Product
   planMatch := rqs1.Plan == rqs2.Plan
   regionMatch := rqs1.Region == rqs2.Region
 
-  return idMatch && productMatch && planMatch && regionMatch
+  return productMatch && planMatch && regionMatch
 }
 
-func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
-  // since inbound data doesn't contain a random number, we need one to
-  // compare existing data with new data. otherwise, they won't match when
-  // they should. to get around this, we add the random number from the existing
-  // data to the new data and then make the comparison.
-  existingDataRetrieved, dataRetrieved := db[rqs.Id]
+func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseWriter, id string) bool {
+  // this function is only used for create / POST attempts
+
+  existingDataRetrieved, dataRetrieved := db[id]
   existingDataBytes := []byte(existingDataRetrieved)
   existingDataBuffer := bytes.NewBuffer(existingDataBytes)
   existingDataRqsStruct := getRequestStruct(existingDataBuffer)
-  newDataMatchesOldData := newDataMatchesOldData(existingDataRqsStruct, rqs)
+  resourceAlreadyExists := existingDataRqsStruct.Id == id
+  noDifferenceInContent := noDifferenceInContent(existingDataRqsStruct, rqs)
 
   // @TODO this can probably be refactored to not account for Method given
   // appropriate routes
   if dataRetrieved {
     // same content acts as created
-    if newDataMatchesOldData {
+    if resourceAlreadyExists && noDifferenceInContent {
       // @TODO: respond with appropriate random number
       resp := ResponseStruct{""}
       js, err := json.Marshal(resp)
 
       issueResponseIfErrorOccurs(err, w)
 
-      w.WriteHeader(http.StatusCreated)
+      w.WriteHeader(http.StatusNoContent)
       w.Write(js)
 
       return true
@@ -241,8 +243,8 @@ func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseW
   return false
 }
 
-func resourceDoesNotExistAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
-  _, dataRetrieved := db[rqs.Id]
+func resourceDoesNotExistAndResponseCreated(rqs RequestStruct, w http.ResponseWriter, id string) bool {
+  _, dataRetrieved := db[id]
 
   if !dataRetrieved {
     // non existing resource
@@ -282,7 +284,7 @@ func validCreateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWrit
   return true
 }
 
-func validUpdateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
+func validUpdateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter, id string) bool {
   // get the random number and create json response
   result := seed()
   resp := ResponseStruct{fmt.Sprintf("%d", result)}
@@ -298,7 +300,7 @@ func validUpdateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWrit
   delete(db, rqs.Id)
   db[rqs.Id] = string(data)
 
-  w.WriteHeader(http.StatusCreated)
+  w.WriteHeader(http.StatusOK)
   w.Write(js)
 
   return false
