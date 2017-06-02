@@ -38,6 +38,16 @@ type RequestStruct struct {
   RandomNumber string `json:"randomNumber"`
 }
 
+// @TODO: may want to rename these
+type CredentialsResponseStruct struct {
+  Message string `json:"message"`
+  Credentials `json:"credentials"`
+}
+
+type Credentials struct {
+  Password string `json:"password"`
+}
+
 func main() {
   router := mux.NewRouter().StrictSlash(true)
 
@@ -84,7 +94,6 @@ func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
   // since the id is only passed via URL with PATCH requests, we set this here
   // and provide it to the relevant methods below.
   _, id := path.Split(r.URL.Path)
-
   bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
 
   if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
@@ -101,10 +110,62 @@ func deleteResourcesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+
+  // bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
+  // _, id := path.Split(r.URL.Path)
+  // fmt.Println(bodyBuffer)
+  // fmt.Println(rqs)
+  // fmt.Println(id)
+  // fmt.Println(db)
+
+  if badSignatureAndResponseCreated(w) { return }
+
+  if noSuchResourceAndResponseCreated(w) { return }
+
+  if provisionCredentialsAndResponseCreated(w) { return }
+
   return
 }
 
+func badSignatureAndResponseCreated(w http.ResponseWriter) bool {
+  // 401 bad signature
+
+  return false
+}
+
+func noSuchResourceAndResponseCreated(w http.ResponseWriter) bool {
+  // 404 no such resource
+
+  return false
+}
+
+func provisionCredentialsAndResponseCreated(w http.ResponseWriter) bool {
+  // 201 password ready {message: 'bla', credentials: {password: '123'}}
+  resp := &CredentialsResponseStruct{
+    Message: "your password is ready",
+    Credentials: Credentials{
+      Password: "test1234",
+    },
+  }
+  js, err := json.Marshal(resp)
+
+  issueResponseIfErrorOccurs(err, w)
+
+  w.WriteHeader(http.StatusCreated)
+  w.Write(js)
+
+  return true
+
+  return false
+}
+
 func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
+  // 401 bad signature
+
+  // 404 no such credential
+
+  // 204
   return
 }
 
