@@ -124,26 +124,20 @@ func deleteResourcessHandler(w http.ResponseWriter, r *http.Request) {
 func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
-  _, rqs := getBodyBufferAndCredentials(r)
+  bodyBuffer, rqs := getBodyBufferAndCredentials(r)
   // _, id := path.Split(r.URL.Path)
   // fmt.Println(bodyBuffer)
   // fmt.Println(rqs)
   // fmt.Println(id)
   // fmt.Println(db)
 
-  if badSignatureAndResponseCreated(w) { return }
+  if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
 
   if invalidResourceIdAndResponseCreated(w, rqs) { return }
 
   if provisionCredentialsAndResponseCreated(w) { return }
 
   return
-}
-
-func badSignatureAndResponseCreated(w http.ResponseWriter) bool {
-  // 401 bad signature
-
-  return false
 }
 
 func invalidResourceIdAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
@@ -168,7 +162,7 @@ func invalidResourceIdAndResponseCreated(w http.ResponseWriter, rqs CredentialsR
 
 func provisionCredentialsAndResponseCreated(w http.ResponseWriter) bool {
   // @TODO: should save to db
-  
+
   resp := &CredentialsResponse{
     Message: "your password is ready",
     Credentials: Credentials{
