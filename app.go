@@ -18,19 +18,26 @@ import (
 )
 
 // simple in-memory db
-var db = make(map[string]string)
+var db = Database{
+  Resources: make(map[string]string),
+  Credentials: Credentials{},
+}
 
 var MASTER_KEY = os.Getenv("MASTER_KEY")
 // CLIENT_ID := os.Getenv("CLIENT_ID")
 // CLIENT_SECRET := os.Getenv("CLIENT_SECRET")
 // CONNECTOR_URL := os.Getenv("CONNECTOR_URL")
 
+type Database struct {
+  Resources map[string]string `json:"resources"`
+  Credentials `json:"credentials"`
+}
+
 type ResponseStruct struct {
   Message string `json:"message"`
 }
 
-// @TODO: may want to rename this
-type RequestStruct struct {
+type Resources struct {
   Id string `json:"id"`
   Product string `json:"product"`
   Plan string `json:"plan"`
@@ -39,7 +46,7 @@ type RequestStruct struct {
 }
 
 // @TODO: may want to rename these
-type CredentialsResponseStruct struct {
+type CredentialsResponse struct {
   Message string `json:"message"`
   Credentials `json:"credentials"`
 }
@@ -48,14 +55,19 @@ type Credentials struct {
   Password string `json:"password"`
 }
 
+type CredentialsRequest struct {
+  Id string `json:"id"`
+  ResourceId string `json:"resource_id"`
+}
+
 func main() {
   router := mux.NewRouter().StrictSlash(true)
 
   router.HandleFunc("/dashboard", dashboardHandler).Methods("GET")
 
-  router.HandleFunc("/v1/resources/{id}", createResourcesHandler).Methods("PUT")
-  router.HandleFunc("/v1/resources/{id}", updateResourcesHandler).Methods("PATCH")
-  router.HandleFunc("/v1/resources/{id}", deleteResourcesHandler).Methods("DELETE")
+  router.HandleFunc("/v1/resources/{id}", createResourcessHandler).Methods("PUT")
+  router.HandleFunc("/v1/resources/{id}", updateResourcessHandler).Methods("PATCH")
+  router.HandleFunc("/v1/resources/{id}", deleteResourcessHandler).Methods("DELETE")
 
   router.HandleFunc("/v1/credentials/{id}", createCredentialsHandler).Methods("PUT")
   router.HandleFunc("/v1/credentials/{id}", deleteCredentialsHandler).Methods("DELETE")
@@ -69,10 +81,10 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
   return
 }
 
-func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
+func createResourcessHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
-  bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
+  bodyBuffer, rqs := getBodyBufferAndResources(r)
   id := rqs.Id
 
   if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
@@ -88,13 +100,13 @@ func createResourcesHandler(w http.ResponseWriter, r *http.Request) {
   if validCreateRequestAndResponseCreated(rqs, w) { return }
 }
 
-func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
+func updateResourcessHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
   // since the id is only passed via URL with PATCH requests, we set this here
   // and provide it to the relevant methods below.
   _, id := path.Split(r.URL.Path)
-  bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
+  bodyBuffer, rqs := getBodyBufferAndResources(r)
 
   if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
 
@@ -105,14 +117,14 @@ func updateResourcesHandler(w http.ResponseWriter, r *http.Request) {
   if validUpdateRequestAndResponseCreated(rqs, w, id) { return }
 }
 
-func deleteResourcesHandler(w http.ResponseWriter, r *http.Request) {
+func deleteResourcessHandler(w http.ResponseWriter, r *http.Request) {
   return
 }
 
 func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
-  // bodyBuffer, rqs := getBodyBufferAndRequestStruct(r)
+  _, rqs := getBodyBufferAndCredentials(r)
   // _, id := path.Split(r.URL.Path)
   // fmt.Println(bodyBuffer)
   // fmt.Println(rqs)
@@ -121,7 +133,7 @@ func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 
   if badSignatureAndResponseCreated(w) { return }
 
-  if noSuchResourceAndResponseCreated(w) { return }
+  if invalidResourceIdAndResponseCreated(w, rqs) { return }
 
   if provisionCredentialsAndResponseCreated(w) { return }
 
@@ -134,15 +146,30 @@ func badSignatureAndResponseCreated(w http.ResponseWriter) bool {
   return false
 }
 
-func noSuchResourceAndResponseCreated(w http.ResponseWriter) bool {
-  // 404 no such resource
+func invalidResourceIdAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
+  resource := db.Resources[rqs.ResourceId]
+
+  if resource == "" {
+    resp := &CredentialsResponse{
+      Message: "no such resource",
+    }
+    js, err := json.Marshal(resp)
+
+    issueResponseIfErrorOccurs(err, w)
+
+    w.WriteHeader(http.StatusNotFound)
+    w.Write(js)
+
+    return true
+  }
 
   return false
 }
 
 func provisionCredentialsAndResponseCreated(w http.ResponseWriter) bool {
-  // 201 password ready {message: 'bla', credentials: {password: '123'}}
-  resp := &CredentialsResponseStruct{
+  // @TODO: should save to db
+  
+  resp := &CredentialsResponse{
     Message: "your password is ready",
     Credentials: Credentials{
       Password: "test1234",
@@ -173,19 +200,37 @@ func ssoHandler(w http.ResponseWriter, r *http.Request) {
   return
 }
 
-func getBodyBufferAndRequestStruct(r *http.Request) (*bytes.Buffer, RequestStruct) {
+func getBodyBufferAndResources(r *http.Request) (*bytes.Buffer, Resources) {
   body, _ := ioutil.ReadAll(r.Body)
   bodyBuffer := bytes.NewBuffer(body)
   bodyCopy := bytes.NewReader(body) // clone body to avoid mutability issues
-  rqs := getRequestStruct(bodyCopy)
+  rqs := getResources(bodyCopy)
 
   return bodyBuffer, rqs
 }
 
-func getRequestStruct(bodyCopy io.Reader) RequestStruct {
+func getResources(bodyCopy io.Reader) Resources {
   // decode request body
   decoder := json.NewDecoder(bodyCopy)
-  var rqs RequestStruct
+  var rqs Resources
+  decoder.Decode(&rqs)
+
+  return rqs
+}
+
+func getBodyBufferAndCredentials(r *http.Request) (*bytes.Buffer, CredentialsRequest) {
+  body, _ := ioutil.ReadAll(r.Body)
+  bodyBuffer := bytes.NewBuffer(body)
+  bodyCopy := bytes.NewReader(body) // clone body to avoid mutability issues
+  rqs := getCredentials(bodyCopy)
+
+  return bodyBuffer, rqs
+}
+
+func getCredentials(bodyCopy io.Reader) CredentialsRequest {
+  // decode request body
+  decoder := json.NewDecoder(bodyCopy)
+  var rqs CredentialsRequest
   decoder.Decode(&rqs)
 
   return rqs
@@ -256,7 +301,7 @@ func regionIsNotValidAndResponseCreated(region string, w http.ResponseWriter) bo
   return true
 }
 
-func noDifferenceInContent(rqs1 RequestStruct, rqs2 RequestStruct) bool {
+func noDifferenceInContent(rqs1 Resources, rqs2 Resources) bool {
   productMatch := rqs1.Product == rqs2.Product
   planMatch := rqs1.Plan == rqs2.Plan
   regionMatch := rqs1.Region == rqs2.Region
@@ -264,13 +309,13 @@ func noDifferenceInContent(rqs1 RequestStruct, rqs2 RequestStruct) bool {
   return productMatch && planMatch && regionMatch
 }
 
-func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseWriter, id string) bool {
+func resourceAlreadyExistsAndResponseCreated(rqs Resources, w http.ResponseWriter, id string) bool {
   // this function is only used for create / POST attempts
 
-  existingDataRetrieved, dataRetrieved := db[id]
+  existingDataRetrieved, dataRetrieved := db.Resources[id]
   existingDataBytes := []byte(existingDataRetrieved)
   existingDataBuffer := bytes.NewBuffer(existingDataBytes)
-  existingDataRqsStruct := getRequestStruct(existingDataBuffer)
+  existingDataRqsStruct := getResources(existingDataBuffer)
   resourceAlreadyExists := existingDataRqsStruct.Id == id
   noDifferenceInContent := noDifferenceInContent(existingDataRqsStruct, rqs)
 
@@ -306,8 +351,8 @@ func resourceAlreadyExistsAndResponseCreated(rqs RequestStruct, w http.ResponseW
   return false
 }
 
-func resourceDoesNotExistAndResponseCreated(rqs RequestStruct, w http.ResponseWriter, id string) bool {
-  _, dataRetrieved := db[id]
+func resourceDoesNotExistAndResponseCreated(rqs Resources, w http.ResponseWriter, id string) bool {
+  _, dataRetrieved := db.Resources[id]
 
   if !dataRetrieved {
     // non existing resource
@@ -325,21 +370,21 @@ func resourceDoesNotExistAndResponseCreated(rqs RequestStruct, w http.ResponseWr
   return false
 }
 
-func validCreateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter) bool {
+func validCreateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter) bool {
   // @TODO: can this be abstracted further?
   // @TODO: save random number in db with data
 
   // get the random number and create json response
   result := seed()
   resp := ResponseStruct{fmt.Sprintf("%d", result)}
-  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, result}
+  rqsData := Resources{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, result}
   js, err := json.Marshal(resp)
   data, err := json.Marshal(rqsData)
 
   issueResponseIfErrorOccurs(err, w)
 
   // add to db
-  db[rqs.Id] = string(data)
+  db.Resources[rqs.Id] = string(data)
 
   w.WriteHeader(http.StatusCreated)
   w.Write(js)
@@ -347,11 +392,11 @@ func validCreateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWrit
   return true
 }
 
-func validUpdateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWriter, id string) bool {
+func validUpdateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter, id string) bool {
   // get the random number and create json response
   result := seed()
   resp := ResponseStruct{fmt.Sprintf("%d", result)}
-  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, result}
+  rqsData := Resources{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, result}
   js, err := json.Marshal(resp)
   data, err := json.Marshal(rqsData)
 
@@ -360,8 +405,8 @@ func validUpdateRequestAndResponseCreated(rqs RequestStruct, w http.ResponseWrit
   // remove previous data and add new data to db
   // @TODO: this is obviously a hack since we're completely replacing the data
   // (PUT) rather than modifying it (PATCH). fix this eventually.
-  delete(db, rqs.Id)
-  db[rqs.Id] = string(data)
+  delete(db.Resources, rqs.Id)
+  db.Resources[rqs.Id] = string(data)
 
   w.WriteHeader(http.StatusOK)
   w.Write(js)
@@ -379,8 +424,8 @@ func handleResponse(responseMessage string, statusCode int, w http.ResponseWrite
   w.Write(js)
 }
 
-func convertRequestToJson(rqs RequestStruct) []byte {
-  rqsData := RequestStruct{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, rqs.RandomNumber}
+func convertRequestToJson(rqs Resources) []byte {
+  rqsData := Resources{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, rqs.RandomNumber}
   jsonData, _ := json.Marshal(rqsData)
 
   return jsonData
