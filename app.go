@@ -176,6 +176,19 @@ func ssoHandler(w http.ResponseWriter, r *http.Request) {
   fmt.Println(err)
   fmt.Println("")
 
+  if err != nil {
+    resp := &CredentialsResponse{}
+    js, err := json.Marshal(resp)
+
+    issueResponseIfErrorOccurs(err, w)
+
+    w.WriteHeader(http.StatusUnauthorized)
+    w.Write(js)
+  }
+
+  // @TODO: store token and resource to session in db
+  // @TODO: redirect
+
   return
 }
 
