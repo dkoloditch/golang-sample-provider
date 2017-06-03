@@ -5,7 +5,7 @@ import (
   "log"
   "net/http"
   "github.com/gorilla/mux"
-  // "golang.org/x/oauth2"
+  "golang.org/x/oauth2"
   "os"
   "math/rand"
   "time"
@@ -24,9 +24,19 @@ var db = Database{
 }
 
 var MASTER_KEY = os.Getenv("MASTER_KEY")
-// CLIENT_ID := os.Getenv("CLIENT_ID")
-// CLIENT_SECRET := os.Getenv("CLIENT_SECRET")
-// CONNECTOR_URL := os.Getenv("CONNECTOR_URL")
+var CLIENT_ID = os.Getenv("CLIENT_ID")
+var CLIENT_SECRET = os.Getenv("CLIENT_SECRET")
+var CONNECTOR_URL = os.Getenv("CONNECTOR_URL")
+
+var oac = &oauth2.Config{
+  ClientID: CLIENT_ID,
+  ClientSecret: CLIENT_SECRET,
+  Scopes:       []string{},
+  Endpoint: oauth2.Endpoint{
+      AuthURL:  CONNECTOR_URL,
+      TokenURL: CONNECTOR_URL + "/oauth/tokens",
+  },
+}
 
 type Database struct {
   Resources map[string]string `json:"resources"`
@@ -125,11 +135,6 @@ func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
   bodyBuffer, rqs := getBodyBufferAndCredentials(r)
-  // _, id := path.Split(r.URL.Path)
-  // fmt.Println(bodyBuffer)
-  // fmt.Println(rqs)
-  // fmt.Println(id)
-  // fmt.Println(db)
 
   if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
 
@@ -138,49 +143,6 @@ func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
   if provisionCredentialsAndResponseCreated(w, rqs) { return }
 
   return
-}
-
-func invalidResourceIdAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
-  resource := db.Resources[rqs.ResourceId]
-
-  if resource == "" {
-    resp := &CredentialsResponse{
-      Message: "no such resource",
-    }
-    js, err := json.Marshal(resp)
-
-    issueResponseIfErrorOccurs(err, w)
-
-    w.WriteHeader(http.StatusNotFound)
-    w.Write(js)
-
-    return true
-  }
-
-  return false
-}
-
-func provisionCredentialsAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
-  data, err := json.Marshal(rqs)
-
-  issueResponseIfErrorOccurs(err, w)
-
-  db.Credentials[rqs.Id] = string(data)
-
-  resp := &CredentialsResponse{
-    Message: "your password is ready",
-    Credentials: Credentials{
-      Password: "test1234",
-    },
-  }
-  js, err := json.Marshal(resp)
-
-  issueResponseIfErrorOccurs(err, w)
-
-  w.WriteHeader(http.StatusCreated)
-  w.Write(js)
-
-  return true
 }
 
 func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
@@ -194,9 +156,30 @@ func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ssoHandler(w http.ResponseWriter, r *http.Request) {
+  // w.Header().Set("Content-Type", "application/json")
+  //
+  // json, _ := json.Marshal(ResponseStruct{})
+  //
+  // w.WriteHeader(http.StatusNoContent)
+  // w.Write(json)
+
+  code := r.URL.Query().Get("code")
+  resource_id := r.URL.Query().Get("resource_id")
+
+  url := oac.AuthCodeURL(CONNECTOR_URL)
+  fmt.Println(url)
+  token, err := oac.Exchange(oauth2.NoContext, code)
+
+  fmt.Println(code)
+  fmt.Println(resource_id)
+  fmt.Println(token)
+  fmt.Println(err)
+  fmt.Println("")
+
   return
 }
 
+// @TODO: refactor following "get..." functions
 func getBodyBufferAndResources(r *http.Request) (*bytes.Buffer, Resources) {
   body, _ := ioutil.ReadAll(r.Body)
   bodyBuffer := bytes.NewBuffer(body)
@@ -321,7 +304,7 @@ func resourceAlreadyExistsAndResponseCreated(rqs Resources, w http.ResponseWrite
   if dataRetrieved {
     // same content acts as created
     if resourceAlreadyExists && noDifferenceInContent {
-      // @TODO: respond with appropriate random number
+      // @TODO: respond with appropriate random number?
       resp := ResponseStruct{""}
       js, err := json.Marshal(resp)
 
@@ -409,6 +392,49 @@ func validUpdateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter, 
   w.Write(js)
 
   return false
+}
+
+func invalidResourceIdAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
+  resource := db.Resources[rqs.ResourceId]
+
+  if resource == "" {
+    resp := &CredentialsResponse{
+      Message: "no such resource",
+    }
+    js, err := json.Marshal(resp)
+
+    issueResponseIfErrorOccurs(err, w)
+
+    w.WriteHeader(http.StatusNotFound)
+    w.Write(js)
+
+    return true
+  }
+
+  return false
+}
+
+func provisionCredentialsAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
+  data, err := json.Marshal(rqs)
+
+  issueResponseIfErrorOccurs(err, w)
+
+  db.Credentials[rqs.Id] = string(data)
+
+  resp := &CredentialsResponse{
+    Message: "your password is ready",
+    Credentials: Credentials{
+      Password: "test1234",
+    },
+  }
+  js, err := json.Marshal(resp)
+
+  issueResponseIfErrorOccurs(err, w)
+
+  w.WriteHeader(http.StatusCreated)
+  w.Write(js)
+
+  return true
 }
 
 func credentialsDoNotExistAndResponseCreated(w http.ResponseWriter, id string) bool {
