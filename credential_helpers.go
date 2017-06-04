@@ -6,7 +6,7 @@ import (
   "encoding/json"
 )
 
-func ProvisionCredentialsAndResponseCreated(w http.ResponseWriter, rqs  CredentialsRequest) bool {
+func ProvisionCredentials(w http.ResponseWriter, rqs  CredentialsRequest) bool {
   data, err := json.Marshal(rqs)
 
   IssueResponseIfErrorOccurs(err, w)
@@ -29,7 +29,7 @@ func ProvisionCredentialsAndResponseCreated(w http.ResponseWriter, rqs  Credenti
   return true
 }
 
-func CredentialsDoNotExistAndResponseCreated(w http.ResponseWriter, id string) bool {
+func CredentialsDoNotExist(w http.ResponseWriter, id string) bool {
   _, dataRetrieved := db.Credentials[id]
 
   if !dataRetrieved {
@@ -49,7 +49,7 @@ func CredentialsDoNotExistAndResponseCreated(w http.ResponseWriter, id string) b
   return false
 }
 
-func CredentialsDeletedAndResponseCreated(w http.ResponseWriter, id string) bool {
+func CredentialsDeleted(w http.ResponseWriter, id string) bool {
   delete(db.Credentials, id)
 
   resp := &CredentialsResponse{

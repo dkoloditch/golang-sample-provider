@@ -7,7 +7,7 @@ import (
   "bytes"
 )
 
-func ProductIsNotValidAndResponseCreated(product string, w http.ResponseWriter) bool {
+func ProductIsNotValid(product string, w http.ResponseWriter) bool {
   products := [1]string{"bonnets"}
 
   for i := range products {
@@ -21,7 +21,7 @@ func ProductIsNotValidAndResponseCreated(product string, w http.ResponseWriter) 
   return true
 }
 
-func PlanIsNotValidAndResponseCreated(plan string, w http.ResponseWriter) bool {
+func PlanIsNotValid(plan string, w http.ResponseWriter) bool {
   plans := [2]string{"small", "large"}
 
   for i := range plans {
@@ -35,7 +35,7 @@ func PlanIsNotValidAndResponseCreated(plan string, w http.ResponseWriter) bool {
   return true
 }
 
-func RegionIsNotValidAndResponseCreated(region string, w http.ResponseWriter) bool {
+func RegionIsNotValid(region string, w http.ResponseWriter) bool {
   regions  := [1]string{"aws::us-east-1"}
 
   for i := range regions {
@@ -57,7 +57,7 @@ func NoDifferenceInContent(rqs1 Resources, rqs2 Resources) bool {
   return productMatch && planMatch && regionMatch
 }
 
-func ResourceAlreadyExistsAndResponseCreated(rqs Resources, w http.ResponseWriter, id string) bool {
+func ResourceAlreadyExists(rqs Resources, w http.ResponseWriter, id string) bool {
   // this function is only used for create / POST attempts
 
   existingDataRetrieved, dataRetrieved := db.Resources[id]
@@ -99,7 +99,7 @@ func ResourceAlreadyExistsAndResponseCreated(rqs Resources, w http.ResponseWrite
   return false
 }
 
-func ResourceDoesNotExistAndResponseCreated(rqs Resources, w http.ResponseWriter, id string) bool {
+func ResourceDoesNotExist(rqs Resources, w http.ResponseWriter, id string) bool {
   _, dataRetrieved := db.Resources[id]
 
   if !dataRetrieved {
@@ -118,7 +118,7 @@ func ResourceDoesNotExistAndResponseCreated(rqs Resources, w http.ResponseWriter
   return false
 }
 
-func ValidCreateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter) bool {
+func ValidCreateRequest(rqs Resources, w http.ResponseWriter) bool {
   // @TODO: can this be abstracted further?
   // @TODO: save random number in db with data
 
@@ -140,7 +140,7 @@ func ValidCreateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter) 
   return true
 }
 
-func ValidUpdateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter, id string) bool {
+func ValidUpdateRequest(rqs Resources, w http.ResponseWriter, id string) bool {
   // get the random number and create json response
   result := Seed()
   resp := ResponseStruct{fmt.Sprintf("%d", result)}
@@ -162,7 +162,7 @@ func ValidUpdateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter, 
   return false
 }
 
-func ResourceDeletedAndResponseCreated(w http.ResponseWriter, id string) bool {
+func ResourceDeleted(w http.ResponseWriter, id string) bool {
   delete(db.Resources, id)
 
   resp := &ResponseStruct{}
@@ -176,7 +176,7 @@ func ResourceDeletedAndResponseCreated(w http.ResponseWriter, id string) bool {
   return true
 }
 
-func InvalidResourceIdAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
+func InvalidResourceId(w http.ResponseWriter, rqs CredentialsRequest) bool {
   resource := db.Resources[rqs.ResourceId]
 
   if resource == "" {

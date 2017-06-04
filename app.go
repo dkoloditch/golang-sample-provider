@@ -59,17 +59,17 @@ func createResourcessHandler(w http.ResponseWriter, r *http.Request) {
   bodyBuffer, rqs := GetBodyBufferAndResources(r)
   id := rqs.Id
 
-  if SignatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
+  if SignatureIsNotValid(r, w, bodyBuffer) { return }
 
-  if ProductIsNotValidAndResponseCreated(rqs.Product, w) { return }
+  if ProductIsNotValid(rqs.Product, w) { return }
 
-  if PlanIsNotValidAndResponseCreated(rqs.Plan, w) { return }
+  if PlanIsNotValid(rqs.Plan, w) { return }
 
-  if RegionIsNotValidAndResponseCreated(rqs.Region, w) { return }
+  if RegionIsNotValid(rqs.Region, w) { return }
 
-  if ResourceAlreadyExistsAndResponseCreated(rqs, w, id) { return }
+  if ResourceAlreadyExists(rqs, w, id) { return }
 
-  if ValidCreateRequestAndResponseCreated(rqs, w) { return }
+  if ValidCreateRequest(rqs, w) { return }
 }
 
 func updateResourcessHandler(w http.ResponseWriter, r *http.Request) {
@@ -80,13 +80,13 @@ func updateResourcessHandler(w http.ResponseWriter, r *http.Request) {
   _, id := path.Split(r.URL.Path)
   bodyBuffer, rqs := GetBodyBufferAndResources(r)
 
-  if SignatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
+  if SignatureIsNotValid(r, w, bodyBuffer) { return }
 
-  if PlanIsNotValidAndResponseCreated(rqs.Plan, w) { return }
+  if PlanIsNotValid(rqs.Plan, w) { return }
 
-  if ResourceDoesNotExistAndResponseCreated(rqs, w, id) { return }
+  if ResourceDoesNotExist(rqs, w, id) { return }
 
-  if ValidUpdateRequestAndResponseCreated(rqs, w, id) { return }
+  if ValidUpdateRequest(rqs, w, id) { return }
 }
 
 func deleteResourcessHandler(w http.ResponseWriter, r *http.Request) {
@@ -95,11 +95,11 @@ func deleteResourcessHandler(w http.ResponseWriter, r *http.Request) {
   _, id := path.Split(r.URL.Path)
   bodyBuffer, rqs := GetBodyBufferAndResources(r)
 
-  if SignatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
+  if SignatureIsNotValid(r, w, bodyBuffer) { return }
 
-  if ResourceDoesNotExistAndResponseCreated(rqs, w, id) { return }
+  if ResourceDoesNotExist(rqs, w, id) { return }
 
-  if ResourceDeletedAndResponseCreated(w, id) { return }
+  if ResourceDeleted(w, id) { return }
 
   return
 }
@@ -109,11 +109,11 @@ func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 
   bodyBuffer, rqs := GetBodyBufferAndCredentials(r)
 
-  if SignatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
+  if SignatureIsNotValid(r, w, bodyBuffer) { return }
 
-  if InvalidResourceIdAndResponseCreated(w, rqs) { return }
+  if InvalidResourceId(w, rqs) { return }
 
-  if ProvisionCredentialsAndResponseCreated(w, rqs) { return }
+  if ProvisionCredentials(w, rqs) { return }
 
   return
 }
@@ -123,9 +123,9 @@ func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 
   _, id := path.Split(r.URL.Path)
 
-  if CredentialsDoNotExistAndResponseCreated(w, id) { return }
+  if CredentialsDoNotExist(w, id) { return }
 
-  if CredentialsDeletedAndResponseCreated(w, id) { return }
+  if CredentialsDeleted(w, id) { return }
 }
 
 func ssoHandler(w http.ResponseWriter, r *http.Request) {

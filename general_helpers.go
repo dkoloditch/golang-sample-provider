@@ -81,7 +81,7 @@ func GetCredentials(bodyCopy io.Reader) CredentialsRequest {
   return rqs
 }
 
-func SignatureIsNotValidAndResponseCreated(r *http.Request, w http.ResponseWriter, buf io.Reader) bool {
+func SignatureIsNotValid(r *http.Request, w http.ResponseWriter, buf io.Reader) bool {
   verifier, _ := signature.NewVerifier(MASTER_KEY)
 
   if err := verifier.Verify(r, buf); err != nil {
