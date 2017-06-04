@@ -30,7 +30,7 @@ export CLIENT_SECRET=3yTKSiJ6f5V5Bq-kWF0hmdrEUep3m3HKPTcPX7CdBZw
 
 # Install dependencies and run the sample app.
 go get
-go run ./app.rb
+go run ./*.go
 
 # In another shell and in the same directory, run grafton.
 grafton test --product=bonnets --plan=small --region=aws::us-east-1 \
