@@ -131,9 +131,11 @@ func deleteResourcessHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
 
   _, id := path.Split(r.URL.Path)
-  bodyBuffer, _ := getBodyBufferAndResources(r)
+  bodyBuffer, rqs := getBodyBufferAndResources(r)
 
   if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
+
+  if resourceDoesNotExistAndResponseCreated(rqs, w, id) { return }
 
   if resourceDeletedAndResponseCreated(w, id) { return }
 
