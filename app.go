@@ -128,6 +128,15 @@ func updateResourcessHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteResourcessHandler(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+
+  _, id := path.Split(r.URL.Path)
+  bodyBuffer, _ := getBodyBufferAndResources(r)
+
+  if signatureIsNotValidAndResponseCreated(r, w, bodyBuffer) { return }
+
+  if resourceDeletedAndResponseCreated(w, id) { return }
+
   return
 }
 
@@ -156,6 +165,8 @@ func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ssoHandler(w http.ResponseWriter, r *http.Request) {
+  // @TODO: clean up comments here
+
   // w.Header().Set("Content-Type", "application/json")
   //
   // json, _ := json.Marshal(ResponseStruct{})
@@ -164,20 +175,22 @@ func ssoHandler(w http.ResponseWriter, r *http.Request) {
   // w.Write(json)
 
   code := r.URL.Query().Get("code")
-  resource_id := r.URL.Query().Get("resource_id")
+  // resource_id := r.URL.Query().Get("resource_id")
 
-  url := oac.AuthCodeURL(CONNECTOR_URL)
-  fmt.Println(url)
-  token, err := oac.Exchange(oauth2.NoContext, code)
+  // url := oac.AuthCodeURL(CONNECTOR_URL)
+  _, err := oac.Exchange(oauth2.NoContext, code) // token, err
+  errReformatted := fmt.Errorf("%v", err) // avoids blowup
 
-  fmt.Println(code)
-  fmt.Println(resource_id)
-  fmt.Println(token)
-  fmt.Println(err)
-  fmt.Println("")
+  // fmt.Println(code)
+  // fmt.Println(resource_id)
+  // fmt.Println(token)
+  // fmt.Println(errReformatted.Error())
+  // fmt.Println("")
 
   if err != nil {
-    resp := &CredentialsResponse{}
+    resp := &CredentialsResponse{
+      Message: fmt.Sprintf("%v", errReformatted.Error()),
+    }
     js, err := json.Marshal(resp)
 
     issueResponseIfErrorOccurs(err, w)
@@ -405,6 +418,20 @@ func validUpdateRequestAndResponseCreated(rqs Resources, w http.ResponseWriter, 
   w.Write(js)
 
   return false
+}
+
+func resourceDeletedAndResponseCreated(w http.ResponseWriter, id string) bool {
+  delete(db.Resources, id)
+
+  resp := &ResponseStruct{}
+  js, err := json.Marshal(resp)
+
+  issueResponseIfErrorOccurs(err, w)
+
+  w.WriteHeader(http.StatusNoContent)
+  w.Write(js)
+
+  return true
 }
 
 func invalidResourceIdAndResponseCreated(w http.ResponseWriter, rqs CredentialsRequest) bool {
