@@ -120,7 +120,7 @@ func updateResourceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ResourceDoesNotExist(rqs, w, id) {
+	if ResourceDoesNotExist(w, id) {
 		return
 	}
 
@@ -133,13 +133,13 @@ func deleteResourceHandler(w http.ResponseWriter, r *http.Request) {
 	SetContentTypeHeaderAsJSON(w)
 
 	_, id := path.Split(r.URL.Path)
-	bodyBuffer, rqs := GetBodyBufferAndResources(r)
+	bodyBuffer, _ := GetBodyBufferAndResources(r)
 
 	if SignatureIsNotValid(r, w, bodyBuffer) {
 		return
 	}
 
-	if ResourceDoesNotExist(rqs, w, id) {
+	if ResourceDoesNotExist(w, id) {
 		return
 	}
 
@@ -159,7 +159,7 @@ func createCredentialHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if InvalidResourceId(w, rqs) {
+	if InvalidResourceForCredential(w, rqs) {
 		return
 	}
 

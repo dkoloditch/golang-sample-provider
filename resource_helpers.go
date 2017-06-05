@@ -93,7 +93,7 @@ func ResourceAlreadyExists(rqs Resources, w http.ResponseWriter, id string) bool
 	return false
 }
 
-func ResourceDoesNotExist(rqs Resources, w http.ResponseWriter, id string) bool {
+func ResourceDoesNotExist(w http.ResponseWriter, id string) bool {
 	_, dataRetrieved := db.Resources[id]
 
 	if !dataRetrieved {
@@ -170,11 +170,11 @@ func ResourceDeleted(w http.ResponseWriter, id string) bool {
 	return true
 }
 
-func InvalidResourceId(w http.ResponseWriter, rqs CredentialsRequest) bool {
+func InvalidResourceForCredential(w http.ResponseWriter, rqs CredentialsRequest) bool {
 	resource := db.Resources[rqs.ResourceId]
 
 	if resource == "" {
-		resp := &CredentialsResponse{
+		resp := CredentialsResponse{
 			Message: "no such resource",
 		}
 		js, err := json.Marshal(resp)
