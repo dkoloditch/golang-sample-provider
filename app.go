@@ -14,7 +14,7 @@ var (
 	// Manifold's public key (or your local test version), used
 	// for by the manifoldco_signature package to verifiy that requests came
 	// from Manifold.
-	MASTER_KEY    = os.Getenv("MASTER_KEY")
+	MASTER_KEY = os.Getenv("MASTER_KEY")
 
 	// OAuth 2.0 client id and secret pair. Used to exchange a code for a user's
 	// token during SSO.
@@ -25,7 +25,7 @@ var (
 	CONNECTOR_URL = os.Getenv("CONNECTOR_URL")
 
 	// oauth2 config setup for SSO
-	oac           = &oauth2.Config{
+	oac = &oauth2.Config{
 		ClientID:     CLIENT_ID,
 		ClientSecret: CLIENT_SECRET,
 		Scopes:       []string{},
@@ -37,8 +37,8 @@ var (
 
 	// Products, plans, and regions we know about
 	products = [1]string{"bonnets"}
-	plans = [2]string{"small", "large"}
-	regions = [1]string{"aws::us-east-1"}
+	plans    = [2]string{"small", "large"}
+	regions  = [1]string{"aws::us-east-1"}
 
 	// simple in-memory db using structs and nested maps
 	db = Database{
@@ -46,7 +46,7 @@ var (
 		Credentials: make(map[string]string),
 	}
 
-	RESPONSE_TYPE_GENERAL = "RESPONSE_TYPE_GENERAL"
+	RESPONSE_TYPE_GENERAL    = "RESPONSE_TYPE_GENERAL"
 	RESPONSE_TYPE_CREDENTIAL = "RESPONSE_TYPE_CREDENTIAL"
 )
 
