@@ -14,7 +14,7 @@ func ProductIsNotValid(product string, w http.ResponseWriter) bool {
 		}
 	}
 
-	HandleResponse("bad product", http.StatusBadRequest, w) // 400
+	setHeadersAndResponse("bad product", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
 
 	return true
 }
@@ -26,7 +26,7 @@ func PlanIsNotValid(plan string, w http.ResponseWriter) bool {
 		}
 	}
 
-	HandleResponse("bad plan", http.StatusBadRequest, w) // 400
+	setHeadersAndResponse("bad plan", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
 
 	return true
 }
@@ -38,7 +38,7 @@ func RegionIsNotValid(region string, w http.ResponseWriter) bool {
 		}
 	}
 
-	HandleResponse("bad region", http.StatusBadRequest, w) // 400
+	setHeadersAndResponse("bad region", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
 
 	return true
 }
@@ -67,24 +67,16 @@ func ResourceAlreadyExists(rqs Resources, w http.ResponseWriter, id string) bool
 		// same content acts as created
 		if resourceAlreadyExists && NoDifferenceInContent {
 			// @TODO: respond with appropriate random number?
-			resp := ResponseStruct{""}
-			js, err := json.Marshal(resp)
+			message := ""
 
-			IssueResponseIfErrorOccurs(err, w)
-
-			w.WriteHeader(http.StatusNoContent) // 204
-			w.Write(js)
+			setHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_GENERAL, w)
 
 			return true
 		} else {
 			// different content results in conflict
-			resp := ResponseStruct{"resource already exists"}
-			js, err := json.Marshal(resp)
+			message := "resource already exists"
 
-			IssueResponseIfErrorOccurs(err, w)
-
-			w.WriteHeader(http.StatusConflict) // 409
-			w.Write(js)
+			setHeadersAndResponse(message, http.StatusConflict, RESPONSE_TYPE_GENERAL, w)
 
 			return true
 		}
@@ -98,13 +90,9 @@ func ResourceDoesNotExist(w http.ResponseWriter, id string) bool {
 
 	if !dataRetrieved {
 		// non existing resource
-		resp := ResponseStruct{"no such resource"}
-		js, err := json.Marshal(resp)
+		message := "no such resource"
 
-		IssueResponseIfErrorOccurs(err, w)
-
-		w.WriteHeader(http.StatusNotFound) // 404
-		w.Write(js)
+		setHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_GENERAL, w)
 
 		return true
 	}
@@ -118,9 +106,8 @@ func ResourceCreated(rqs Resources, w http.ResponseWriter) bool {
 
 	// get the random number and create json response
 	result := Seed()
-	resp := ResponseStruct{fmt.Sprintf("%d", result)}
+	message := fmt.Sprintf("%d", result)
 	rqsData := Resources{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, result}
-	js, err := json.Marshal(resp)
 	data, err := json.Marshal(rqsData)
 
 	IssueResponseIfErrorOccurs(err, w)
@@ -128,8 +115,7 @@ func ResourceCreated(rqs Resources, w http.ResponseWriter) bool {
 	// add to db
 	db.Resources[rqs.Id] = string(data)
 
-	w.WriteHeader(http.StatusCreated) // 201
-	w.Write(js)
+	setHeadersAndResponse(message, http.StatusCreated, RESPONSE_TYPE_GENERAL, w)
 
 	return true
 }
@@ -137,9 +123,8 @@ func ResourceCreated(rqs Resources, w http.ResponseWriter) bool {
 func ResourceUpdated(rqs Resources, w http.ResponseWriter, id string) bool {
 	// get the random number and create json response
 	result := Seed()
-	resp := ResponseStruct{fmt.Sprintf("%d", result)}
+	message := fmt.Sprintf("%d", result)
 	rqsData := Resources{rqs.Id, rqs.Product, rqs.Plan, rqs.Region, result}
-	js, err := json.Marshal(resp)
 	data, err := json.Marshal(rqsData)
 
 	IssueResponseIfErrorOccurs(err, w)
@@ -150,8 +135,7 @@ func ResourceUpdated(rqs Resources, w http.ResponseWriter, id string) bool {
 	delete(db.Resources, rqs.Id)
 	db.Resources[rqs.Id] = string(data)
 
-	w.WriteHeader(http.StatusOK) // 200
-	w.Write(js)
+	setHeadersAndResponse(message, http.StatusOK, RESPONSE_TYPE_GENERAL, w)
 
 	return false
 }
@@ -159,13 +143,9 @@ func ResourceUpdated(rqs Resources, w http.ResponseWriter, id string) bool {
 func ResourceDeleted(w http.ResponseWriter, id string) bool {
 	delete(db.Resources, id)
 
-	resp := &ResponseStruct{}
-	js, err := json.Marshal(resp)
+	message := ""
 
-	IssueResponseIfErrorOccurs(err, w)
-
-	w.WriteHeader(http.StatusNoContent) // 204
-	w.Write(js)
+	setHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_GENERAL, w)
 
 	return true
 }
@@ -174,15 +154,9 @@ func InvalidResourceForCredential(w http.ResponseWriter, rqs CredentialsRequest)
 	resource := db.Resources[rqs.ResourceId]
 
 	if resource == "" {
-		resp := CredentialsResponse{
-			Message: "no such resource",
-		}
-		js, err := json.Marshal(resp)
+		message := "no such resource"
 
-		IssueResponseIfErrorOccurs(err, w)
-
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(js)
+		setHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_GENERAL, w)
 
 		return true
 	}

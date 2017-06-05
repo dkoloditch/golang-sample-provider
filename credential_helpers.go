@@ -13,18 +13,9 @@ func ProvisionCredentials(w http.ResponseWriter, rqs CredentialsRequest) bool {
 
 	db.Credentials[rqs.Id] = string(data)
 
-	resp := &CredentialsResponse{
-		Message: "your password is ready",
-		Credentials: Credentials{
-			Password: "test1234",
-		},
-	}
-	js, err := json.Marshal(resp)
+	message := "your password is ready"
 
-	IssueResponseIfErrorOccurs(err, w)
-
-	w.WriteHeader(http.StatusCreated)
-	w.Write(js)
+	setHeadersAndResponse(message, http.StatusCreated, RESPONSE_TYPE_CREDENTIAL, w)
 
 	return true
 }
@@ -33,15 +24,9 @@ func CredentialsDoNotExist(w http.ResponseWriter, id string) bool {
 	_, dataRetrieved := db.Credentials[id]
 
 	if !dataRetrieved {
-		resp := &CredentialsResponse{
-			Message: "no such credential",
-		}
-		js, err := json.Marshal(resp)
+		message := "no such credential"
 
-		IssueResponseIfErrorOccurs(err, w)
-
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(js)
+		setHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_CREDENTIAL, w)
 
 		return true
 	}
@@ -52,13 +37,9 @@ func CredentialsDoNotExist(w http.ResponseWriter, id string) bool {
 func CredentialsDeleted(w http.ResponseWriter, id string) bool {
 	delete(db.Credentials, id)
 
-	resp := &CredentialsResponse{}
-	js, err := json.Marshal(resp)
+	message := ""
 
-	IssueResponseIfErrorOccurs(err, w)
-
-	w.WriteHeader(http.StatusNoContent)
-	w.Write(js)
+	setHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_CREDENTIAL, w)
 
 	return true
 }

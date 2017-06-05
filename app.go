@@ -46,6 +46,9 @@ var (
 		Resources:   make(map[string]string),
 		Credentials: make(map[string]string),
 	}
+
+	RESPONSE_TYPE_GENERAL = "RESPONSE_TYPE_GENERAL"
+	RESPONSE_TYPE_CREDENTIAL = "RESPONSE_TYPE_CREDENTIAL"
 )
 
 func main() {
@@ -74,8 +77,6 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createResourceHandler(w http.ResponseWriter, r *http.Request) {
-	SetContentTypeHeaderAsJSON(w)
-
 	bodyBuffer, rqs := GetBodyBufferAndResources(r)
 	id := rqs.Id
 
@@ -105,8 +106,6 @@ func createResourceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateResourceHandler(w http.ResponseWriter, r *http.Request) {
-	SetContentTypeHeaderAsJSON(w)
-
 	// since the id is only passed via URL with PATCH requests, we set this here
 	// and provide it to the relevant methods below.
 	_, id := path.Split(r.URL.Path)
@@ -130,8 +129,6 @@ func updateResourceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteResourceHandler(w http.ResponseWriter, r *http.Request) {
-	SetContentTypeHeaderAsJSON(w)
-
 	_, id := path.Split(r.URL.Path)
 	bodyBuffer, _ := GetBodyBufferAndResources(r)
 
@@ -151,8 +148,6 @@ func deleteResourceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createCredentialHandler(w http.ResponseWriter, r *http.Request) {
-	SetContentTypeHeaderAsJSON(w)
-
 	bodyBuffer, rqs := GetBodyBufferAndCredentials(r)
 
 	if SignatureIsNotValid(r, w, bodyBuffer) {
@@ -171,8 +166,6 @@ func createCredentialHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteCredentialHandler(w http.ResponseWriter, r *http.Request) {
-	SetContentTypeHeaderAsJSON(w)
-
 	_, id := path.Split(r.URL.Path)
 
 	if CredentialsDoNotExist(w, id) {
@@ -187,8 +180,6 @@ func deleteCredentialHandler(w http.ResponseWriter, r *http.Request) {
 func ssoHandler(w http.ResponseWriter, r *http.Request) {
 	// SSO requets come from the user's browser, so we don't want to run the
 	// validator against them.
-
-	SetContentTypeHeaderAsJSON(w)
 
 	code := r.URL.Query().Get("code")
 	// resource_id := r.URL.Query().Get("resource_id")

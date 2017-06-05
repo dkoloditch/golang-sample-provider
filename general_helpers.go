@@ -17,7 +17,7 @@ type Database struct {
 	Credentials map[string]string `json:"credentials"`
 }
 
-type ResponseStruct struct {
+type Response struct {
 	Message string `json:"message"`
 }
 
@@ -42,10 +42,6 @@ type Credentials struct {
 type CredentialsRequest struct {
 	Id         string `json:"id"`
 	ResourceId string `json:"resource_id"`
-}
-
-func SetContentTypeHeaderAsJSON(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
 }
 
 // @TODO: refactor following "get..." functions
@@ -89,13 +85,10 @@ func SignatureIsNotValid(r *http.Request, w http.ResponseWriter, buf io.Reader) 
 	verifier, _ := signature.NewVerifier(MASTER_KEY)
 
 	if err := verifier.Verify(r, buf); err != nil {
-		resp := ResponseStruct{""}
-		js, err := json.Marshal(resp)
+		message := ""
 
-		IssueResponseIfErrorOccurs(err, w)
+		setHeadersAndResponse(message, http.StatusUnauthorized, RESPONSE_TYPE_GENERAL, w)
 
-		w.WriteHeader(http.StatusUnauthorized) // 401
-		w.Write(js)
 		return true
 	}
 
@@ -108,14 +101,33 @@ func Seed() string {
 	return fmt.Sprintf("%d", result)
 }
 
-func HandleResponse(responseMessage string, statusCode int, w http.ResponseWriter) {
-	resp := ResponseStruct{responseMessage}
-	js, err := json.Marshal(resp)
+func setHeadersAndResponse(responseMessage string, statusCode int, responseType string, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
 
-	IssueResponseIfErrorOccurs(err, w)
+	if responseType == RESPONSE_TYPE_CREDENTIAL {
+		// response for credential requests
+		resp := CredentialsResponse{
+			Message: responseMessage,
+			Credentials: Credentials{
+				Password: "test1234",
+			},
+		}
+		js, err := json.Marshal(resp)
 
-	w.WriteHeader(statusCode)
-	w.Write(js)
+		IssueResponseIfErrorOccurs(err, w)
+
+		w.WriteHeader(statusCode)
+		w.Write(js)
+	} else {
+		// response for resource requests, etc
+		resp := Response{responseMessage}
+		js, err := json.Marshal(resp)
+
+		IssueResponseIfErrorOccurs(err, w)
+
+		w.WriteHeader(statusCode)
+		w.Write(js)
+	}
 }
 
 func ConvertRequestToJson(rqs Resources) []byte {
