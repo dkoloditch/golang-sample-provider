@@ -87,7 +87,7 @@ func SignatureIsNotValid(r *http.Request, w http.ResponseWriter, buf io.Reader) 
 	if err := verifier.Verify(r, buf); err != nil {
 		message := ""
 
-		setHeadersAndResponse(message, http.StatusUnauthorized, RESPONSE_TYPE_GENERAL, w)
+		SetHeadersAndResponse(message, http.StatusUnauthorized, RESPONSE_TYPE_GENERAL, w)
 
 		return true
 	}
@@ -101,7 +101,7 @@ func Seed() string {
 	return fmt.Sprintf("%d", result)
 }
 
-func setHeadersAndResponse(responseMessage string, statusCode int, responseType string, w http.ResponseWriter) {
+func SetHeadersAndResponse(responseMessage string, statusCode int, responseType string, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if responseType == RESPONSE_TYPE_CREDENTIAL {

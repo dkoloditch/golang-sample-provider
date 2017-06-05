@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	"golang.org/x/oauth2"
@@ -188,15 +187,9 @@ func ssoHandler(w http.ResponseWriter, r *http.Request) {
 	errReformatted := fmt.Errorf("%v", err) // avoids a blowup
 
 	if err != nil {
-		resp := &CredentialsResponse{
-			Message: fmt.Sprintf("%v", errReformatted.Error()),
-		}
-		js, err := json.Marshal(resp)
+		message := fmt.Sprintf("%v", errReformatted.Error())
 
-		IssueResponseIfErrorOccurs(err, w)
-
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write(js)
+		SetHeadersAndResponse(message, http.StatusUnauthorized, RESPONSE_TYPE_GENERAL, w)
 	}
 
 	// @TODO: store token and resource to session in db

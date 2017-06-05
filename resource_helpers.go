@@ -14,7 +14,7 @@ func ProductIsNotValid(product string, w http.ResponseWriter) bool {
 		}
 	}
 
-	setHeadersAndResponse("bad product", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
+	SetHeadersAndResponse("bad product", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
 
 	return true
 }
@@ -26,7 +26,7 @@ func PlanIsNotValid(plan string, w http.ResponseWriter) bool {
 		}
 	}
 
-	setHeadersAndResponse("bad plan", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
+	SetHeadersAndResponse("bad plan", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
 
 	return true
 }
@@ -38,7 +38,7 @@ func RegionIsNotValid(region string, w http.ResponseWriter) bool {
 		}
 	}
 
-	setHeadersAndResponse("bad region", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
+	SetHeadersAndResponse("bad region", http.StatusBadRequest, RESPONSE_TYPE_GENERAL, w) // 400
 
 	return true
 }
@@ -69,14 +69,14 @@ func ResourceAlreadyExists(rqs Resources, w http.ResponseWriter, id string) bool
 			// @TODO: respond with appropriate random number?
 			message := ""
 
-			setHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_GENERAL, w)
+			SetHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_GENERAL, w)
 
 			return true
 		} else {
 			// different content results in conflict
 			message := "resource already exists"
 
-			setHeadersAndResponse(message, http.StatusConflict, RESPONSE_TYPE_GENERAL, w)
+			SetHeadersAndResponse(message, http.StatusConflict, RESPONSE_TYPE_GENERAL, w)
 
 			return true
 		}
@@ -92,7 +92,7 @@ func ResourceDoesNotExist(w http.ResponseWriter, id string) bool {
 		// non existing resource
 		message := "no such resource"
 
-		setHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_GENERAL, w)
+		SetHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_GENERAL, w)
 
 		return true
 	}
@@ -115,7 +115,7 @@ func ResourceCreated(rqs Resources, w http.ResponseWriter) bool {
 	// add to db
 	db.Resources[rqs.Id] = string(data)
 
-	setHeadersAndResponse(message, http.StatusCreated, RESPONSE_TYPE_GENERAL, w)
+	SetHeadersAndResponse(message, http.StatusCreated, RESPONSE_TYPE_GENERAL, w)
 
 	return true
 }
@@ -135,7 +135,7 @@ func ResourceUpdated(rqs Resources, w http.ResponseWriter, id string) bool {
 	delete(db.Resources, rqs.Id)
 	db.Resources[rqs.Id] = string(data)
 
-	setHeadersAndResponse(message, http.StatusOK, RESPONSE_TYPE_GENERAL, w)
+	SetHeadersAndResponse(message, http.StatusOK, RESPONSE_TYPE_GENERAL, w)
 
 	return false
 }
@@ -145,7 +145,7 @@ func ResourceDeleted(w http.ResponseWriter, id string) bool {
 
 	message := ""
 
-	setHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_GENERAL, w)
+	SetHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_GENERAL, w)
 
 	return true
 }
@@ -156,7 +156,7 @@ func InvalidResourceForCredential(w http.ResponseWriter, rqs CredentialsRequest)
 	if resource == "" {
 		message := "no such resource"
 
-		setHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_GENERAL, w)
+		SetHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_GENERAL, w)
 
 		return true
 	}

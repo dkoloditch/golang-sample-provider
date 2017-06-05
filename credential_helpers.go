@@ -15,7 +15,7 @@ func ProvisionCredentials(w http.ResponseWriter, rqs CredentialsRequest) bool {
 
 	message := "your password is ready"
 
-	setHeadersAndResponse(message, http.StatusCreated, RESPONSE_TYPE_CREDENTIAL, w)
+	SetHeadersAndResponse(message, http.StatusCreated, RESPONSE_TYPE_CREDENTIAL, w)
 
 	return true
 }
@@ -26,7 +26,7 @@ func CredentialsDoNotExist(w http.ResponseWriter, id string) bool {
 	if !dataRetrieved {
 		message := "no such credential"
 
-		setHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_CREDENTIAL, w)
+		SetHeadersAndResponse(message, http.StatusNotFound, RESPONSE_TYPE_CREDENTIAL, w)
 
 		return true
 	}
@@ -39,7 +39,7 @@ func CredentialsDeleted(w http.ResponseWriter, id string) bool {
 
 	message := ""
 
-	setHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_CREDENTIAL, w)
+	SetHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_CREDENTIAL, w)
 
 	return true
 }
