@@ -58,8 +58,8 @@ func main() {
 	router.HandleFunc("/v1/resources/{id}", updateResourceHandler).Methods("PATCH")
 	router.HandleFunc("/v1/resources/{id}", deleteResourceHandler).Methods("DELETE")
 
-	router.HandleFunc("/v1/credentials/{id}", createCredentialsHandler).Methods("PUT")
-	router.HandleFunc("/v1/credentials/{id}", deleteCredentialsHandler).Methods("DELETE")
+	router.HandleFunc("/v1/credentials/{id}", createCredentialHandler).Methods("PUT")
+	router.HandleFunc("/v1/credentials/{id}", deleteCredentialHandler).Methods("DELETE")
 
 	router.HandleFunc("/v1/sso", ssoHandler).Methods("GET")
 
@@ -150,7 +150,7 @@ func deleteResourceHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
+func createCredentialHandler(w http.ResponseWriter, r *http.Request) {
 	SetContentTypeHeaderAsJSON(w)
 
 	bodyBuffer, rqs := GetBodyBufferAndCredentials(r)
@@ -170,7 +170,7 @@ func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
+func deleteCredentialHandler(w http.ResponseWriter, r *http.Request) {
 	SetContentTypeHeaderAsJSON(w)
 
 	_, id := path.Split(r.URL.Path)
