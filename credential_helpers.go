@@ -1,65 +1,64 @@
 package main
 
 import (
-  // "fmt"
-  "net/http"
-  "encoding/json"
+	// "fmt"
+	"encoding/json"
+	"net/http"
 )
 
-func ProvisionCredentials(w http.ResponseWriter, rqs  CredentialsRequest) bool {
-  data, err := json.Marshal(rqs)
+func ProvisionCredentials(w http.ResponseWriter, rqs CredentialsRequest) bool {
+	data, err := json.Marshal(rqs)
 
-  IssueResponseIfErrorOccurs(err, w)
+	IssueResponseIfErrorOccurs(err, w)
 
-  db.Credentials[rqs.Id] = string(data)
+	db.Credentials[rqs.Id] = string(data)
 
-  resp := &CredentialsResponse{
-    Message: "your password is ready",
-    Credentials: Credentials{
-      Password: "test1234",
-    },
-  }
-  js, err := json.Marshal(resp)
+	resp := &CredentialsResponse{
+		Message: "your password is ready",
+		Credentials: Credentials{
+			Password: "test1234",
+		},
+	}
+	js, err := json.Marshal(resp)
 
-  IssueResponseIfErrorOccurs(err, w)
+	IssueResponseIfErrorOccurs(err, w)
 
-  w.WriteHeader(http.StatusCreated)
-  w.Write(js)
+	w.WriteHeader(http.StatusCreated)
+	w.Write(js)
 
-  return true
+	return true
 }
 
 func CredentialsDoNotExist(w http.ResponseWriter, id string) bool {
-  _, dataRetrieved := db.Credentials[id]
+	_, dataRetrieved := db.Credentials[id]
 
-  if !dataRetrieved {
-    resp := &CredentialsResponse{
-      Message: "no such credential",
-    }
-    js, err := json.Marshal(resp)
+	if !dataRetrieved {
+		resp := &CredentialsResponse{
+			Message: "no such credential",
+		}
+		js, err := json.Marshal(resp)
 
-    IssueResponseIfErrorOccurs(err, w)
+		IssueResponseIfErrorOccurs(err, w)
 
-    w.WriteHeader(http.StatusNotFound)
-    w.Write(js)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write(js)
 
-    return true
-  }
+		return true
+	}
 
-  return false
+	return false
 }
 
 func CredentialsDeleted(w http.ResponseWriter, id string) bool {
-  delete(db.Credentials, id)
+	delete(db.Credentials, id)
 
-  resp := &CredentialsResponse{
-  }
-  js, err := json.Marshal(resp)
+	resp := &CredentialsResponse{}
+	js, err := json.Marshal(resp)
 
-  IssueResponseIfErrorOccurs(err, w)
+	IssueResponseIfErrorOccurs(err, w)
 
-  w.WriteHeader(http.StatusNoContent)
-  w.Write(js)
+	w.WriteHeader(http.StatusNoContent)
+	w.Write(js)
 
-  return true
+	return true
 }
