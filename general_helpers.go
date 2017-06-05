@@ -44,6 +44,10 @@ type CredentialsRequest struct {
 	ResourceId string `json:"resource_id"`
 }
 
+func SetContentTypeHeaderAsJSON(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+}
+
 // @TODO: refactor following "get..." functions
 func GetBodyBufferAndResources(r *http.Request) (*bytes.Buffer, Resources) {
 	body, _ := ioutil.ReadAll(r.Body)
@@ -90,7 +94,7 @@ func SignatureIsNotValid(r *http.Request, w http.ResponseWriter, buf io.Reader) 
 
 		IssueResponseIfErrorOccurs(err, w)
 
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized) // 401
 		w.Write(js)
 		return true
 	}

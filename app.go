@@ -12,15 +12,20 @@ import (
 )
 
 var (
-	// simple in-memory db
-	db = Database{
-		Resources:   make(map[string]string),
-		Credentials: make(map[string]string),
-	}
+	// Manifold's public key (or your local test version), used
+	// for by the manifoldco_signature package to verifiy that requests came
+	// from Manifold.
 	MASTER_KEY    = os.Getenv("MASTER_KEY")
+
+	// OAuth 2.0 client id and secret pair. Used to exchange a code for a user's
+	// token during SSO.
 	CLIENT_ID     = os.Getenv("CLIENT_ID")
 	CLIENT_SECRET = os.Getenv("CLIENT_SECRET")
+
+	// The URL of manifold's connector url, for completing SSO or making requests
 	CONNECTOR_URL = os.Getenv("CONNECTOR_URL")
+
+	// oauth2 config setup for SSO
 	oac           = &oauth2.Config{
 		ClientID:     CLIENT_ID,
 		ClientSecret: CLIENT_SECRET,
@@ -30,16 +35,28 @@ var (
 			TokenURL: CONNECTOR_URL + "/oauth/tokens",
 		},
 	}
+
+	// Products, plans, and regions we know about
+	products = [1]string{"bonnets"}
+	plans = [2]string{"small", "large"}
+	regions = [1]string{"aws::us-east-1"}
+
+	// simple in-memory db using structs and nested maps
+	db = Database{
+		Resources:   make(map[string]string),
+		Credentials: make(map[string]string),
+	}
 )
 
 func main() {
+	// Manifold API endpoints and functions for handling requests
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/dashboard", dashboardHandler).Methods("GET")
 
-	router.HandleFunc("/v1/resources/{id}", createResourcessHandler).Methods("PUT")
-	router.HandleFunc("/v1/resources/{id}", updateResourcessHandler).Methods("PATCH")
-	router.HandleFunc("/v1/resources/{id}", deleteResourcessHandler).Methods("DELETE")
+	router.HandleFunc("/v1/resources/{id}", createResourceHandler).Methods("PUT")
+	router.HandleFunc("/v1/resources/{id}", updateResourceHandler).Methods("PATCH")
+	router.HandleFunc("/v1/resources/{id}", deleteResourceHandler).Methods("DELETE")
 
 	router.HandleFunc("/v1/credentials/{id}", createCredentialsHandler).Methods("PUT")
 	router.HandleFunc("/v1/credentials/{id}", deleteCredentialsHandler).Methods("DELETE")
@@ -50,11 +67,14 @@ func main() {
 }
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
+	// The cool dashboard. A user has to be authenticated with Manifold to
+	// use this.
+
 	return
 }
 
-func createResourcessHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func createResourceHandler(w http.ResponseWriter, r *http.Request) {
+	SetContentTypeHeaderAsJSON(w)
 
 	bodyBuffer, rqs := GetBodyBufferAndResources(r)
 	id := rqs.Id
@@ -79,13 +99,13 @@ func createResourcessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ValidCreateRequest(rqs, w) {
+	if ResourceCreated(rqs, w) {
 		return
 	}
 }
 
-func updateResourcessHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func updateResourceHandler(w http.ResponseWriter, r *http.Request) {
+	SetContentTypeHeaderAsJSON(w)
 
 	// since the id is only passed via URL with PATCH requests, we set this here
 	// and provide it to the relevant methods below.
@@ -104,13 +124,13 @@ func updateResourcessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ValidUpdateRequest(rqs, w, id) {
+	if ResourceUpdated(rqs, w, id) {
 		return
 	}
 }
 
-func deleteResourcessHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func deleteResourceHandler(w http.ResponseWriter, r *http.Request) {
+	SetContentTypeHeaderAsJSON(w)
 
 	_, id := path.Split(r.URL.Path)
 	bodyBuffer, rqs := GetBodyBufferAndResources(r)
@@ -131,7 +151,7 @@ func deleteResourcessHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	SetContentTypeHeaderAsJSON(w)
 
 	bodyBuffer, rqs := GetBodyBufferAndCredentials(r)
 
@@ -151,7 +171,7 @@ func createCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	SetContentTypeHeaderAsJSON(w)
 
 	_, id := path.Split(r.URL.Path)
 
@@ -165,13 +185,16 @@ func deleteCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ssoHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	// SSO requets come from the user's browser, so we don't want to run the
+	// validator against them.
+
+	SetContentTypeHeaderAsJSON(w)
 
 	code := r.URL.Query().Get("code")
 	// resource_id := r.URL.Query().Get("resource_id")
 	// url := oac.AuthCodeURL(CONNECTOR_URL)
-	_, err := oac.Exchange(oauth2.NoContext, code) // token, err
-	errReformatted := fmt.Errorf("%v", err)        // avoids blowup
+	_, err := oac.Exchange(oauth2.NoContext, code)
+	errReformatted := fmt.Errorf("%v", err) // avoids a blowup
 
 	if err != nil {
 		resp := &CredentialsResponse{
