@@ -44,6 +44,7 @@ var (
 	db = Database{
 		Resources:   make(map[string]string),
 		Credentials: make(map[string]string),
+		Sessions: make(map[string]string),
 	}
 
 	RESPONSE_TYPE_GENERAL    = "RESPONSE_TYPE_GENERAL"
@@ -181,19 +182,23 @@ func ssoHandler(w http.ResponseWriter, r *http.Request) {
 	// validator against them.
 
 	code := r.URL.Query().Get("code")
-	// resource_id := r.URL.Query().Get("resource_id")
+	resource_id := r.URL.Query().Get("resource_id")
 	// url := oac.AuthCodeURL(CONNECTOR_URL)
-	_, err := oac.Exchange(oauth2.NoContext, code)
+	token, err := oac.Exchange(oauth2.NoContext, code)
 	errReformatted := fmt.Errorf("%v", err) // avoids a blowup
 
 	if err != nil {
 		message := fmt.Sprintf("%v", errReformatted.Error())
 
 		SetHeadersAndResponse(message, http.StatusUnauthorized, RESPONSE_TYPE_GENERAL, w)
+
+		return
 	}
 
-	// @TODO: store token and resource to session in db
-	// @TODO: redirect
+	// @TODO: must be a better way to store this information
+	db.Sessions[resource_id] = fmt.Sprintf("%v", token)
+
+	http.Redirect(w, r, "/dashboard", http.StatusOK)
 
 	return
 }

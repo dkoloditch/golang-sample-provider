@@ -66,7 +66,6 @@ func ResourceAlreadyExists(rqs Resources, w http.ResponseWriter, id string) bool
 	if dataRetrieved {
 		// same content acts as created
 		if resourceAlreadyExists && NoDifferenceInContent {
-			// @TODO: respond with appropriate random number?
 			message := ""
 
 			SetHeadersAndResponse(message, http.StatusNoContent, RESPONSE_TYPE_GENERAL, w)
@@ -101,9 +100,6 @@ func ResourceDoesNotExist(w http.ResponseWriter, id string) bool {
 }
 
 func ResourceCreated(rqs Resources, w http.ResponseWriter) bool {
-	// @TODO: can this be abstracted further?
-	// @TODO: save random number in db with data
-
 	// get the random number and create json response
 	result := Seed()
 	message := fmt.Sprintf("%d", result)

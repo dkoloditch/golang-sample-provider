@@ -15,6 +15,7 @@ import (
 type Database struct {
 	Resources   map[string]string `json:"resources"`
 	Credentials map[string]string `json:"credentials"`
+	Sessions map[string]string `json:"sessions"`
 }
 
 type Response struct {
@@ -29,7 +30,6 @@ type Resources struct {
 	RandomNumber string `json:"randomNumber"`
 }
 
-// @TODO: may want to rename these
 type CredentialsResponse struct {
 	Message     string `json:"message"`
 	Credentials `json:"credentials"`
@@ -42,6 +42,10 @@ type Credentials struct {
 type CredentialsRequest struct {
 	Id         string `json:"id"`
 	ResourceId string `json:"resource_id"`
+}
+
+type Sessions struct {
+	Token	string `json:"token"`
 }
 
 // @TODO: refactor following "get..." functions
