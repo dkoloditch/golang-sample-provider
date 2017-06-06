@@ -36,7 +36,7 @@ var (
 	}
 
 	// Products, plans, and regions we know about
-	products = [1]string{"bonnets"}
+	products = [1]string{"randomNumbers"}
 	plans    = [2]string{"small", "large"}
 	regions  = [1]string{"aws::us-east-1"}
 
