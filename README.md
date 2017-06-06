@@ -1,4 +1,4 @@
-# golang-sample-provider
+# Sample Manifold Provider (Go)
 
 This is a minimal provider for Manifold written in Go. It's similar to [this one written in Sinatra](https://github.com/manifoldco/ruby-sinatra-sample-provider) and returns random numbers.
 
